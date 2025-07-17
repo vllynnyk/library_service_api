@@ -1,3 +1,4 @@
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
@@ -5,6 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework import serializers
 from rest_framework.utils import timezone
 
+from borrowings.filters import BorrowingFilter
 from borrowings.models import Borrowing
 from borrowings.serializers import BorrowingSerializer, BorrowingListSerializer, BorrowingDetailSerializer
 
@@ -12,9 +14,15 @@ from borrowings.serializers import BorrowingSerializer, BorrowingListSerializer,
 class BorrowingViewSet(viewsets.ModelViewSet):
     queryset = Borrowing.objects.select_related("book", "user").all()
     permission_classes = [IsAuthenticated]
+    filter_backends = (DjangoFilterBackend,)
+    filter_class = BorrowingFilter
 
     def get_queryset(self):
-        return self.queryset.filter(user=self.request.user)
+        queryset = self.queryset
+        user = self.request.user
+        if not user.is_staff:
+            queryset = queryset.filter(user=user)
+        return queryset
 
     def get_serializer_class(self):
         if self.action == "list":
