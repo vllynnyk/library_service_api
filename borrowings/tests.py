@@ -32,6 +32,7 @@ class BorrowingTests(TestCase):
             password="1234pass",
             first_name="Super",
             last_name="User",
+            is_staff=True,
         )
         cls.book_1 = Book.objects.create(
             title="Black Day",
@@ -101,8 +102,6 @@ class AuthenticatedBorrowingApiTests(BorrowingTests):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.json(), serializer.data)
 
-
-
     def test_borrowing_create(self):
         payload = {
             "book": self.book_2.id,
@@ -135,3 +134,22 @@ class AuthenticatedBorrowingApiTests(BorrowingTests):
         returned_ids = [item["id"] for item in response.json()]
         self.assertNotIn(self.borrow_4.id, returned_ids)
 
+
+class AdminBorrowingApiTests(BorrowingTests):
+    def setUp(self):
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.admin)
+
+    def test_borrowing_list_admin(self):
+        response = self.client.get(BORROWING_URL)
+        borrowings = Borrowing.objects.all()
+        serializer = BorrowingListSerializer(borrowings, many=True)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.json(), serializer.data)
+
+    def test_borrowing_filter_by_users(self):
+        response = self.client.get(BORROWING_URL, {"user_id": self.user_2.id})
+        borrowings = Borrowing.objects.filter(user=self.user_2)
+        serializer = BorrowingListSerializer(borrowings, many=True)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.json(), serializer.data)
