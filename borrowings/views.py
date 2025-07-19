@@ -15,7 +15,7 @@ class BorrowingViewSet(viewsets.ModelViewSet):
     queryset = Borrowing.objects.select_related("book", "user").all()
     permission_classes = [IsAuthenticated]
     filter_backends = (DjangoFilterBackend,)
-    filter_class = BorrowingFilter
+    filterset_class = BorrowingFilter
 
     def get_queryset(self):
         queryset = self.queryset
