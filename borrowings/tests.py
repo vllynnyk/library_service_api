@@ -87,3 +87,51 @@ class UnauthenticatedBorrowingApiTests(BorrowingTests):
     def test_auth_required(self):
         response = self.client.get(BORROWING_URL)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+class AuthenticatedBorrowingApiTests(BorrowingTests):
+    def setUp(self):
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user_1)
+
+    def test_borrowing_list(self):
+        response = self.client.get(BORROWING_URL)
+        borrowings = Borrowing.objects.filter(user=self.user_1)
+        serializer = BorrowingListSerializer(borrowings, many=True)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.json(), serializer.data)
+
+
+
+    def test_borrowing_create(self):
+        payload = {
+            "book": self.book_2.id,
+            "expected_return_date": date(2025, 7, 22)
+        }
+        response = self.client.post(BORROWING_URL, payload)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+
+    def test_borrowing_validate_with_empty_inventory(self):
+        payload = {
+            "book": self.book_1.id,
+            "expected_return_date": date(2025, 7, 22)
+        }
+        response = self.client.post(BORROWING_URL, payload)
+        serializer = BorrowingSerializer(data=payload)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("book", serializer.errors)
+        self.assertIn("Black Day", str(serializer.errors["book"]))
+
+    def test_borrowing_filter_is_active(self):
+        response = self.client.get(BORROWING_URL, {"is_active": "true"})
+        borrowings = Borrowing.objects.filter(user=self.user_1, actual_return_date__isnull=True)
+        serializer = BorrowingListSerializer(borrowings, many=True)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.json(), serializer.data)
+
+        returned_ids = [item["id"] for item in response.json()]
+        self.assertNotIn(self.borrow_4.id, returned_ids)
+
