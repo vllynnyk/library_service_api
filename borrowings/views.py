@@ -9,7 +9,7 @@ from django.utils import timezone
 from borrowings.filters import BorrowingFilter
 from borrowings.models import Borrowing
 from borrowings.serializers import BorrowingSerializer, BorrowingListSerializer, BorrowingDetailSerializer
-
+from telegram_chat import send_message_into_group
 
 class BorrowingViewSet(viewsets.ModelViewSet):
     queryset = Borrowing.objects.select_related("book", "user").all()
@@ -40,6 +40,7 @@ class BorrowingViewSet(viewsets.ModelViewSet):
 
         book.inventory -= 1
         book.save()
+        send_message_into_group(borrowing, "create")
 
     @action(detail=True, methods=["POST"])
     def return_book(self, request, pk=None):
@@ -55,5 +56,6 @@ class BorrowingViewSet(viewsets.ModelViewSet):
         book = borrowing.book
         book.inventory += 1
         book.save()
+        send_message_into_group(borrowing, "return")
 
         return Response(BorrowingSerializer(borrowing).data)
