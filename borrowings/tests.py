@@ -102,13 +102,38 @@ class AuthenticatedBorrowingApiTests(BorrowingTests):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.json(), serializer.data)
 
-    def test_borrowing_create(self):
+    def test_borrowing_create_decreases_inventory(self):
         payload = {
             "book": self.book_2.id,
             "expected_return_date": date(2025, 7, 22)
         }
         response = self.client.post(BORROWING_URL, payload)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.book_2.refresh_from_db()
+        self.assertEqual(self.book_2.inventory, 99)
+
+    def test_borrowing_return_decreases_inventory(self):
+        borrowing = self.borrow_3
+        borrowing.book.inventory -= 1
+        borrowing.book.save()
+        previous_inventory = borrowing.book.inventory
+
+        url = reverse("borrowings:borrowing-return-book", args=[borrowing.id])
+        response = self.client.post(url)
+
+        borrowing.refresh_from_db()
+        borrowing.book.refresh_from_db()
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIsNotNone(borrowing.actual_return_date)
+        self.assertEqual(borrowing.book.inventory,    previous_inventory + 1)
+
+    def test_return_book_already_returned(self):
+        borrowing = self.borrow_4
+        url = reverse("borrowings:borrowing-return-book", args=[borrowing.id])
+        response = self.client.post(url)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.json()["detail"], "Book already returned.")
 
 
     def test_borrowing_validate_with_empty_inventory(self):
