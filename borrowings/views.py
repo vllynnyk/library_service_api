@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import serializers
-from rest_framework.utils import timezone
+from django.utils import timezone
 
 from borrowings.filters import BorrowingFilter
 from borrowings.models import Borrowing
