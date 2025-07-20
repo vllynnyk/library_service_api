@@ -115,6 +115,7 @@ class AuthenticatedBorrowingApiTests(BorrowingTests):
     def test_borrowing_return_decreases_inventory(self):
         borrowing = self.borrow_3
         borrowing.book.inventory -= 1
+        # Manually decrease inventory because the Borrowing was created directly (bypassing the API)
         borrowing.book.save()
         previous_inventory = borrowing.book.inventory
 
