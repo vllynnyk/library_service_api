@@ -1,9 +1,9 @@
 from rest_framework.permissions import BasePermission
 
 
-class IsAdminAllOrIsAuthenticatedReadOnly(BasePermission):
-    """The request is authenticated as an admin -read/write,
-    if as user - read only request."""
+class IsAdminOrOwnerPermission(BasePermission):
+    """The request is restrict data for user,
+    if as admin - all data is returned."""
 
     def has_object_permission(self, request, view, obj):
         return request.user.is_staff or obj.user == request.user
