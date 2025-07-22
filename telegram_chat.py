@@ -1,7 +1,6 @@
 import os
+import requests
 
-from django.contrib.sites import requests
-from rest_framework.response import Response
 from dotenv import load_dotenv
 
 from borrowings.models import Borrowing
