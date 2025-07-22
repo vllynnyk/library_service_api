@@ -26,3 +26,7 @@ class Borrowing(models.Model):
     def save(self, *args, **kwargs):
         self.full_clean()
         return super().save(*args, **kwargs)
+
+    def calculate_total_price(self):
+        days = (self.expected_return_date - self.borrow_date).days
+        return days * self.book.daily_fee
