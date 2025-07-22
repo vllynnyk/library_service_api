@@ -34,21 +34,20 @@ class PaymentViewSet(mixins.RetrieveModelMixin,
         else:
             return PaymentSerializer
 
-    @action(detail=True)
+    @action(detail=True, methods=["get"])
     def success(self, request, *args, **kwargs):
         instance = self.get_object()
 
-        if instance.status != Payment.Status.PAID:
-            stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+        if instance.status != Payment.PaymentStatus.PAID:
             session = stripe.checkout.Session.retrieve(instance.session_id)
             if session.payment_status == "paid":
-                instance.status = Payment.Status.PAID
+                instance.status = Payment.PaymentStatus.PAID
                 instance.save()
 
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
 
-    @action(detail=True)
+    @action(detail=True, methods=["get"])
     def cancel(self, request, *args, **kwargs):
         instance = self.get_object()
         return Response({"detail": "Payment was canceled or failed."}, status=status.HTTP_200_OK)
