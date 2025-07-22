@@ -2,9 +2,9 @@ from django.test import TestCase
 from rest_framework.reverse import reverse
 
 from books.models import Book
-from books.serializers import BookSerializer
+from books.serializers import BookSerializer, BookListSerializer
 
-BOOKS_URL = reverse("books:books-list")
+BOOKS_URL = reverse("books:book-list")
 
 class BookTest(TestCase):
     def setUp(self):
@@ -33,12 +33,12 @@ class BookTest(TestCase):
     def test_book_list(self):
         response = self.client.get(BOOKS_URL)
         book = Book.objects.all()
-        serializer = BookSerializer(book, many=True)
+        serializer = BookListSerializer(book, many=True)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data, serializer.data)
 
     def test_book_detail(self):
-        url = reverse("books:books-detail", kwargs={"pk": self.book_1.pk})
+        url = reverse("books:book-detail", kwargs={"pk": self.book_1.pk})
         response = self.client.get(url)
         serializer = BookSerializer(Book.objects.get(pk=self.book_1.pk))
         self.assertEqual(response.status_code, 200)
@@ -48,7 +48,7 @@ class BookTest(TestCase):
     def test_book_search_by_title(self):
         response = self.client.get(f"{BOOKS_URL}?search=firs")
         expected_book = Book.objects.filter(title__icontains="firs")
-        serializer = BookSerializer(expected_book, many=True)
+        serializer = BookListSerializer(expected_book, many=True)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data, serializer.data)
         titles = [book["title"] for book in response.data]
@@ -59,7 +59,7 @@ class BookTest(TestCase):
     def test_book_search_by_author(self):
         response = self.client.get(f"{BOOKS_URL}?search=lester")
         expected_book = Book.objects.filter(author__icontains="lester")
-        serializer = BookSerializer(expected_book, many=True)
+        serializer = BookListSerializer(expected_book, many=True)
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data, serializer.data)
