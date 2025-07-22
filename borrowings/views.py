@@ -1,3 +1,4 @@
+from django.db import transaction
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets, status
 from rest_framework.response import Response
@@ -9,11 +10,13 @@ from django.utils import timezone
 from borrowings.filters import BorrowingFilter
 from borrowings.models import Borrowing
 from borrowings.serializers import BorrowingSerializer, BorrowingListSerializer, BorrowingDetailSerializer
+from permissions import IsAdminOrOwnerPermission
 from telegram_chat import send_message_into_group
+from payments.stripe_session import create_stripe_payment
 
 class BorrowingViewSet(viewsets.ModelViewSet):
     queryset = Borrowing.objects.select_related("book", "user").all()
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsAdminOrOwnerPermission]
     filter_backends = (DjangoFilterBackend,)
     filterset_class = BorrowingFilter
 
@@ -32,15 +35,17 @@ class BorrowingViewSet(viewsets.ModelViewSet):
         return BorrowingSerializer
 
     def perform_create(self, serializer):
-        borrowing = serializer.save(user=self.request.user)
-        book = borrowing.book
+        with transaction.atomic():
+            borrowing = serializer.save(user=self.request.user)
+            book = borrowing.book
 
-        if book.inventory <= 0:
-            raise serializers.ValidationError("This book is not available.")
+            if book.inventory <= 0:
+                raise serializers.ValidationError("This book is not available.")
 
-        book.inventory -= 1
-        book.save()
-        send_message_into_group(borrowing, "create")
+            book.inventory -= 1
+            book.save()
+            create_stripe_payment(self.request, borrowing)
+            send_message_into_group(borrowing, "create")
 
     @action(detail=True, methods=["POST"])
     def return_book(self, request, pk=None):
