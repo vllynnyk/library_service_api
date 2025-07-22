@@ -1,4 +1,5 @@
 from datetime import datetime, date
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -102,7 +103,12 @@ class AuthenticatedBorrowingApiTests(BorrowingTests):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.json(), serializer.data)
 
-    def test_borrowing_create_decreases_inventory(self):
+    @patch('borrowings.views.send_message_into_group')
+    @patch('borrowings.views.create_stripe_payment')
+    def test_borrowing_create_decreases_inventory(self, mock_create_payment, mock_send_message):
+        mock_create_payment.return_value = None
+        mock_send_message.return_value = None
+
         payload = {
             "book": self.book_2.id,
             "expected_return_date": date(2025, 7, 22)
@@ -112,7 +118,8 @@ class AuthenticatedBorrowingApiTests(BorrowingTests):
         self.book_2.refresh_from_db()
         self.assertEqual(self.book_2.inventory, 99)
 
-    def test_borrowing_return_decreases_inventory(self):
+    @patch('borrowings.views.send_message_into_group')
+    def test_borrowing_return_decreases_inventory(self, mock_send_message):
         borrowing = self.borrow_3
         borrowing.book.inventory -= 1
         # Manually decrease inventory because the Borrowing was created directly (bypassing the API)
@@ -127,7 +134,9 @@ class AuthenticatedBorrowingApiTests(BorrowingTests):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIsNotNone(borrowing.actual_return_date)
-        self.assertEqual(borrowing.book.inventory,    previous_inventory + 1)
+        self.assertEqual(borrowing.book.inventory, previous_inventory + 1)
+
+        mock_send_message.assert_called_once()
 
     def test_return_book_already_returned(self):
         borrowing = self.borrow_4
