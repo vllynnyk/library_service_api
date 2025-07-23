@@ -1,5 +1,6 @@
 from django.db import transaction
 from django_filters.rest_framework import DjangoFilterBackend
+from drf_spectacular.utils import extend_schema
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
@@ -34,6 +35,11 @@ class BorrowingViewSet(viewsets.ModelViewSet):
             return BorrowingDetailSerializer
         return BorrowingSerializer
 
+    @extend_schema(
+        description="Create a new borrowing. Requires a valid book with positive inventory. "
+                    "Optionally filter by created.",
+        responses=BorrowingSerializer,
+    )
     def perform_create(self, serializer):
         with transaction.atomic():
             borrowing = serializer.save(user=self.request.user)
@@ -47,6 +53,11 @@ class BorrowingViewSet(viewsets.ModelViewSet):
             create_stripe_payment(self.request, borrowing)
             send_message_into_group(borrowing, "create")
 
+    @extend_schema(
+        description="Mark the borrowing as returned. Increases book inventory and sets actual_return_date. "
+                    "Fails if already returned.",
+        responses=BorrowingSerializer,
+    )
     @action(detail=True, methods=["POST"])
     def return_book(self, request, pk=None):
         borrowing = self.get_object()
@@ -64,3 +75,18 @@ class BorrowingViewSet(viewsets.ModelViewSet):
         send_message_into_group(borrowing, "return")
 
         return Response(BorrowingSerializer(borrowing).data)
+
+    @extend_schema(
+        description="Retrieve a list of all borrowings. Only ID, borrowing_date, and book_title are shown. "
+                    "You can optionally custom filter by is_active.",
+        responses=BorrowingListSerializer,
+    )
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
+    @extend_schema(
+        description="Retrieve detailed information about a specific borrowing by ID.",
+        responses=BorrowingDetailSerializer,
+    )
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
