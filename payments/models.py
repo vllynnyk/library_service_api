@@ -17,3 +17,10 @@ class Payment(models.Model):
     session_url = models.URLField()
     session_id = models.CharField(max_length=55)
     money_to_pay = models.DecimalField(decimal_places=2, max_digits=10)
+    created = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created"]
+
+    def __str__(self):
+        return f"{self.type} {self.status}"
